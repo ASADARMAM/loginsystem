@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+    <style>
+        html, body {
+            text-align: center;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+            display: flex;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 300px;
+            margin: 100px auto;
+            padding: 20px;
+            background-color: black;
+            color: rgb(255, 0, 0);
+            outline: 5px inset rgb(255, 3, 3);
+            border-radius: 100px;
+            box-shadow: 0 0 60px 30px rgba(255, 0, 0, 1);
+            text-align: center;
+            height: 80%;
+            display: flex;
+            flex-direction: column;
+            min-height: auto;
+        }
+
+        h1 {
+            font-family: 'Courier New', Courier, monospace;
+            color: rgb(255, 0, 0);
+            font-style: italic;
+            text-transform: uppercase;
+            text-shadow: 10px 10px 15px rgb(0, 255, 47);
+        }
+
+        input {
+            margin-top: 10px;
+            box-shadow: 0 0 15px 5px rgb(0, 255, 47);
+            padding: 10px;
+            border-radius: 20px;
+            border: none;
+        }
+
+        .signup {
+            margin-top: 15px;
+            color: red;
+            background-color: #0bff14;
+            border-radius: 50px;
+            padding: 10px 20px;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 0 15px 7px rgb(0, 255, 47);
+            border: none;
+            margin: auto;
+        }
+
+        .signup:hover {
+            background-color: red;
+            color: black;
+        }
+
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 9999;
+            color: #0bff14;
+            font-size: 2em;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            flex-direction: column;
+        }
+        #loading-overlay.active {
+            display: flex;
+        }
+        .spinner {
+            margin: 0 auto 30px auto;
+            border: 16px solid #f3f3f3;
+            border-top: 16px solid #0bff14;
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: #0bff14;
+            font-size: 1.5em;
+        }
+        .content-wrapper.blur {
+            filter: blur(70px);
+        }
+        .backlogin{
+            position: fixed;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            color: white;
+            background-color: #ff0000;
+            border-radius: 50px;
+            box-shadow: 0 0 15px 10px rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            z-index: 10001;
+            border: none;
+            font-size: 1em;
+            cursor: pointer;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper">
+        <div>
+            
+        <div class="container">
+            <h1>Signup</h1>
+            <label for="Username">Username</label>
+            <input type="text" id="Username"><br>
+            <label for="Password">Password</label>
+            <input type="password" id="Password"><br><br>
+            <label for="Repeat-Password">Repeat-Password</label>
+            <input type="password" id="Repeat-Password"><br><br>
+            <button class="signup" id="signup">Signup</button>
+        </div>
+        </div>
+    </div>
+
+    <button class="backlogin" id="backlogin">BACK TO LOGIN</button>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Please verify your email.<br>Waiting for verification...</div>
+    </div>
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAW9TyUVWU0u2rbpXhwVTGaGdiR244ngic",
+            authDomain: "login-de63e.firebaseapp.com",
+            projectId: "login-de63e",
+            storageBucket: "login-de63e.appspot.com",
+            messagingSenderId: "652035860499",
+            appId: "1:652035860499:web:bd645665ff174d89fc77e6",
+            measurementId: "G-1G04E5PXR5"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        // Signup
+        document.getElementById("signup").addEventListener("click", function () {
+            const email = document.getElementById("Username").value;
+            const password = document.getElementById("Password").value;
+            const repeatPassword = document.getElementById("Repeat-Password").value;
+            const loadingOverlay = document.getElementById("loading-overlay");
+            const contentWrapper = document.querySelector('.content-wrapper');
+
+            if (password !== repeatPassword) {
+                alert("Passwords do not match!");
+                return;
+            }
+
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Send verification email
+                    userCredential.user.sendEmailVerification().then(() => {
+                        alert("Signup successful! Please verify your email.");
+                        // Show loading overlay and blur background
+                        loadingOverlay.classList.add("active");
+                        contentWrapper.classList.add("blur");
+                        // Start polling for email verification
+                        pollEmailVerification(userCredential.user, loadingOverlay, contentWrapper);
+                    });
+                })
+                .catch((error) => {
+                    alert("Signup Error: " + error.message);
+                });
+        });
+
+        // Polling function
+        function pollEmailVerification(user, loadingOverlay, contentWrapper) {
+            const interval = setInterval(() => {
+                user.reload().then(() => {
+                    if (user.emailVerified) {
+                        clearInterval(interval);
+                        loadingOverlay.classList.remove("active");
+                        contentWrapper.classList.remove("blur");
+                        alert("Email verified! You can now use your account.");
+                        // Optionally, redirect or perform other actions here
+                    }
+                });
+            }, 2000); // Check every 2 seconds
+        }
+        document.getElementById("backlogin").onclick = function(){
+            window.location.href ="login.html"
+        }
+    </script>
+</body>
+</html>
